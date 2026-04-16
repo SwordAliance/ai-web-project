@@ -1,15 +1,19 @@
 FROM python:3.11-slim
 
+ENV PYTHONDONTWRITEBYTECODE=1 \
+    PYTHONUNBUFFERED=1
+
 WORKDIR /app
 
-ENV PYTHONDONTWRITEBYTECODE=1     PYTHONUNBUFFERED=1
+RUN apt-get update \
+    && apt-get install -y --no-install-recommends gcc \
+    && rm -rf /var/lib/apt/lists/*
 
-COPY ui/requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
-COPY ui /app/ui
-WORKDIR /app/ui
+COPY . .
 
 EXPOSE 8501
 
-CMD ["sh", "-c", "streamlit run app.py --server.address=0.0.0.0 --server.port=${UI_PORT:-8501} --server.headless=true"]
+CMD ["streamlit", "run", "app.py", "--server.address=0.0.0.0", "--server.port=8501"]
