@@ -21,32 +21,21 @@ API -> Redis -> Celery Worker -> ML Service
 API -> PostgreSQL  
 API -> Prometheus -> Grafana
 
-## Структура проекта
+## Логика работы
+Пользователь отправляет запрос через UI.
+UI вызывает backend API.
+API создаёт Celery-задачу.
+Worker обрабатывает задачу.
+Результат передаётся клиенту через WebSocket.
+История запросов сохраняется в PostgreSQL.
+Метрики доступны в Prometheus и Grafana.
+Основные инженерные решения
+Backend и worker разделены
+API stateless
+Состояние задач вынесено в Redis / PostgreSQL
+WebSocket используется вместо постоянного polling
+Nginx выступает единой точкой входа
+Все сервисы запускаются одной командой
 
-
-ai_web_project/
-├── backend/
-│   ├── app/
-│   │   ├── api/
-│   │   ├── core/
-│   │   ├── db/
-│   │   ├── schemas/
-│   │   ├── services/
-│   │   ├── tasks/
-│   │   └── main.py
-│   ├── alembic/
-│   ├── alembic.ini
-│   ├── Dockerfile
-│   └── requirements.txt
-├── ui/
-│   ├── app.py
-│   ├── Dockerfile
-│   └── requirements.txt
-├── infra/
-│   ├── prometheus/
-│   └── grafana/
-├── nginx/
-│   └── nginx.conf
-├── docker-compose.yml
-├── .env.example
-└── README.md
+# Запуск 
+docker compose up --build -d
