@@ -30,7 +30,7 @@ API -> Prometheus -> Grafana
 - История запросов сохраняется в PostgreSQL.
 - Метрики доступны в Prometheus и Grafana.
 
-# Основные инженерные решения
+# Основные решения
 - Backend и worker разделены
 - API stateless
 - Состояние задач вынесено в Redis / PostgreSQL
