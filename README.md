@@ -22,20 +22,21 @@ API -> PostgreSQL
 API -> Prometheus -> Grafana
 
 ## Логика работы
-Пользователь отправляет запрос через UI.
-UI вызывает backend API.
-API создаёт Celery-задачу.
-Worker обрабатывает задачу.
-Результат передаётся клиенту через WebSocket.
-История запросов сохраняется в PostgreSQL.
-Метрики доступны в Prometheus и Grafana.
-Основные инженерные решения
-Backend и worker разделены
-API stateless
-Состояние задач вынесено в Redis / PostgreSQL
-WebSocket используется вместо постоянного polling
-Nginx выступает единой точкой входа
-Все сервисы запускаются одной командой
+- Пользователь отправляет запрос через UI.
+- UI вызывает backend API.
+- API создаёт Celery-задачу.
+- Worker обрабатывает задачу.
+- Результат передаётся клиенту через WebSocket.
+- История запросов сохраняется в PostgreSQL.
+- Метрики доступны в Prometheus и Grafana.
+
+# Основные инженерные решения
+- Backend и worker разделены
+- API stateless
+- Состояние задач вынесено в Redis / PostgreSQL
+- WebSocket используется вместо постоянного polling
+- Nginx выступает единой точкой входа
+- Все сервисы запускаются одной командой
 
 # Запуск 
 docker compose up --build -d
