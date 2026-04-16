@@ -1,14 +1,26 @@
-# AI Web Project
+# AI Web Service
 
-Учебный AI-веб-сервис, который показывает полный цикл инженерного проекта:
+AI-веб-сервис с асинхронной обработкой запросов, WebSocket-уведомлениями, PostgreSQL, Celery, Redis, Nginx, Alembic, Prometheus и Grafana.
 
-- FastAPI backend
-- Celery + Redis для асинхронных задач
-- PostgreSQL + SQLAlchemy + Alembic
-- Streamlit UI
-- Nginx reverse proxy
-- Prometheus + Grafana
+## Архитектура
+
+Пользователь → Nginx → UI / API  
+API → Redis (broker) → Celery Worker → ML Service  
+API → PostgreSQL  
+Prometheus → Grafana
+
+## Возможности
+
+- REST API на FastAPI
+- Асинхронные задачи через Celery
 - WebSocket для получения результата без polling
+- ORM: SQLAlchemy
+- Миграции: Alembic
+- Health checks
+- Метрики Prometheus
+- Дашборд Grafana
+- UI на Streamlit
+- Reverse proxy на Nginx
 
 ## Запуск
 
@@ -17,47 +29,28 @@ cp .env.example .env
 docker compose up --build -d
 ```
 
-## Архитектура
+## Доступ
 
-Пользователь -> Nginx -> UI / API  
-UI -> REST API для запуска задачи  
-UI <-...-> WebSocket <-...-> API для получения результата  
-API -> Celery -> Worker -> ML service  
-API -> PostgreSQL  
-API/Worker -> Redis  
-Prometheus -> API `/metrics`  
-Grafana -> Prometheus
+- UI: http://localhost
+- API docs: http://localhost/api/docs
+- Health: http://localhost/api/health
+- Metrics: http://localhost/api/metrics
+- Prometheus: http://localhost:9090
+- Grafana: http://localhost:3000
 
-## Основные эндпоинты
-
-- `GET /v1/health`
-- `POST /v1/predict`
-- `GET /v1/tasks/{task_id}`
-- `GET /v1/history`
-- `WS /v1/ws/{task_id}`
-- `GET /metrics`
-
-## Что закрыто по критериям
-
-- lifespan для инициализации Redis, БД и модели
-- Celery + Redis
-- строгая Pydantic-валидация
-- кастомные обработчики ошибок
-- отдельный ML-сервис
-- логирование всех этапов
-- ORM и Alembic миграции
-- health checks
-- Prometheus и Grafana
-- Nginx reverse proxy и rate limiting
-- Docker Compose с сетями, volumes и порядком запуска
-- WebSocket вместо polling в UI
-
-## Примечания по запуску
-
-В проекте есть сервис `migrate`, который перед стартом API и worker выполняет:
+## Пример запроса
 
 ```bash
-alembic upgrade head
+curl -X POST http://localhost/api/predict \
+  -H "Content-Type: application/json" \
+  -d '{"prompt":"Привет", "creativity":0.5}'
 ```
 
-Это делает запуск воспроизводимым одной командой `docker compose up --build -d`.
+## Структура
+
+```text
+backend/   API, worker, DB, services
+ui/        Streamlit интерфейс
+nginx/     reverse proxy
+infra/     Prometheus и Grafana
+```
