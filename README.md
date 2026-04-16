@@ -1,6 +1,4 @@
 
-# AI Web Service
-
 Учебный AI-веб-сервис с асинхронной обработкой задач, REST API, WebSocket, PostgreSQL, Redis, Celery, миграциями Alembic, reverse proxy на Nginx и мониторингом через Prometheus + Grafana.
 
 ## Возможности
