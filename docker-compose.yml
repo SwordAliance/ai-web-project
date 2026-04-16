@@ -1,8 +1,6 @@
 services:
   postgres:
     image: postgres:16-alpine
-    container_name: aiweb_postgres
-    restart: unless-stopped
     env_file: .env
     environment:
       POSTGRES_DB: ${POSTGRES_DB}
@@ -14,14 +12,12 @@ services:
       - backend_net
     healthcheck:
       test: ["CMD-SHELL", "pg_isready -U $$POSTGRES_USER -d $$POSTGRES_DB"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   redis:
     image: redis:7-alpine
-    container_name: aiweb_redis
-    restart: unless-stopped
     command: ["redis-server", "--appendonly", "yes"]
     volumes:
       - redis_data:/data
@@ -29,52 +25,39 @@ services:
       - backend_net
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
-      interval: 10s
+      interval: 5s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   migrate:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: aiweb_migrate
-    restart: "no"
+      context: ./backend
+      dockerfile: Dockerfile
+    command: alembic upgrade head
     env_file: .env
     environment:
-      SERVICE_ROLE: migrate
       DATABASE_URL: ${DATABASE_URL}
-      REDIS_URL: ${REDIS_URL}
-      LOG_LEVEL: ${LOG_LEVEL}
-      MODEL_PATH: ${MODEL_PATH}
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-    volumes:
-      - model_store:/models
     networks:
       - backend_net
+    restart: "no"
 
   api:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: aiweb_api
-    restart: unless-stopped
+      context: ./backend
+      dockerfile: Dockerfile
     env_file: .env
     environment:
-      SERVICE_ROLE: api
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LOG_LEVEL: ${LOG_LEVEL}
-      MODEL_PATH: ${MODEL_PATH}
-      API_PORT: ${API_PORT}
+      MODEL_MAX_INPUT_CHARS: ${MODEL_MAX_INPUT_CHARS}
+      MODEL_MAX_OUTPUT_CHARS: ${MODEL_MAX_OUTPUT_CHARS}
     depends_on:
       migrate:
         condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
     volumes:
@@ -83,31 +66,28 @@ services:
       - frontend_net
       - backend_net
     healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/v1/health').read()\""]
-      interval: 15s
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8000/api/health').read()\""]
+      interval: 10s
       timeout: 5s
-      retries: 10
+      retries: 20
 
   worker:
     build:
-      context: .
-      dockerfile: backend/Dockerfile
-    container_name: aiweb_worker
-    restart: unless-stopped
+      context: ./backend
+      dockerfile: Dockerfile
+    command: celery -A app.tasks.celery_app.celery worker --loglevel=info
     env_file: .env
     environment:
-      SERVICE_ROLE: worker
       DATABASE_URL: ${DATABASE_URL}
       REDIS_URL: ${REDIS_URL}
       LOG_LEVEL: ${LOG_LEVEL}
-      MODEL_PATH: ${MODEL_PATH}
+      MODEL_MAX_INPUT_CHARS: ${MODEL_MAX_INPUT_CHARS}
+      MODEL_MAX_OUTPUT_CHARS: ${MODEL_MAX_OUTPUT_CHARS}
     depends_on:
-      migrate:
-        condition: service_completed_successfully
-      postgres:
-        condition: service_healthy
       redis:
         condition: service_healthy
+      migrate:
+        condition: service_completed_successfully
     volumes:
       - model_store:/models
     networks:
@@ -115,45 +95,34 @@ services:
 
   ui:
     build:
-      context: .
-      dockerfile: ui/Dockerfile
-    container_name: aiweb_ui
-    restart: unless-stopped
+      context: ./ui
+      dockerfile: Dockerfile
     env_file: .env
     environment:
       API_INTERNAL_URL: ${API_INTERNAL_URL}
-      UI_PORT: ${UI_PORT}
+      STREAMLIT_SERVER_PORT: ${STREAMLIT_SERVER_PORT}
     depends_on:
       api:
         condition: service_healthy
     networks:
       - frontend_net
-    healthcheck:
-      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:8501/').read()\""]
-      interval: 15s
-      timeout: 5s
-      retries: 10
 
   nginx:
     image: nginx:1.27-alpine
-    container_name: aiweb_nginx
-    restart: unless-stopped
     depends_on:
-      api:
-        condition: service_healthy
       ui:
-        condition: service_healthy
-    ports:
-      - "80:80"
+        condition: service_started
+      api:
+        condition: service_started
     volumes:
       - ./nginx/nginx.conf:/etc/nginx/nginx.conf:ro
+    ports:
+      - "80:80"
     networks:
       - frontend_net
 
   prometheus:
     image: prom/prometheus:v2.55.1
-    container_name: aiweb_prometheus
-    restart: unless-stopped
     volumes:
       - ./infra/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
       - prometheus_data:/prometheus
@@ -162,14 +131,9 @@ services:
     networks:
       - frontend_net
       - backend_net
-    depends_on:
-      api:
-        condition: service_healthy
 
   grafana:
     image: grafana/grafana-oss:11.4.0
-    container_name: aiweb_grafana
-    restart: unless-stopped
     env_file: .env
     environment:
       GF_SECURITY_ADMIN_USER: ${GRAFANA_ADMIN_USER}
